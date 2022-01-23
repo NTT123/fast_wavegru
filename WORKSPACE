@@ -115,17 +115,6 @@ http_archive(
 load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
-android_sdk_repository(
-    name = "androidsdk",
-    api_level = 29,
-    build_tools_version = "29.0.3"
-)
-
-android_ndk_repository(
-    name = "androidndk",
-    api_level = 29
-)
-
 http_archive(
     name = "rules_android",
     sha256 = "cd06d15dd8bb59926e4d65f9003bfc20f9da4b2519985c27e190cddc8b7a7806",

@@ -19,3 +19,4 @@ cc_library(
         "//sparse_matmul/vector:cache_aligned_vector",
     ],  # internal :sparse_matmul deps placeholder
 )
+
