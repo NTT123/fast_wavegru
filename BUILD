@@ -15,15 +15,15 @@ licenses(["notice"])
 
 exports_files(
     srcs = [
-        "wavegru.cc",
+        "gru.cc",
     ],
 )
 
 
 cc_binary(
-    name = "wavegru",
+    name = "gru",
     srcs = [
-        "wavegru.cc",
+        "gru.cc",
     ],
     deps = [
         "//sparse_matmul",

@@ -82,7 +82,7 @@ inline __m256 MultiplyAddFloat(const __m256& input_pairs,
   data_pair1 = _mm256_mul_ps(data_pair1, input_pairs);
   data_pair0 = _mm256_hadd_ps(data_pair0, data_pair1);
   // Swap the middle 2 64 bit pairs to correct the hadd result.
-  data_pair0 = _mm256_permute4x64_pd(data_pair0, 0xd8);
+  data_pair0 = _mm256_permute4x64_pd((__m256d)data_pair0, 0xd8);
   if (kThreeInputs) {
     // Load 256 bits (8 x float) of data, then multiply-accumulate.
     data_pair1 = _mm256_load_ps(ptr2);
@@ -147,7 +147,7 @@ inline __m256i GRUComputeState(const __m256& cell0, const __m256& cell1,
 // well.
 // Returns the total sum as a float, but on the scale of |*input|.
 template <bool kTwoGates, ARInputsMode kInputsMode>
-inline __m256i GruInput32ToFloat(const __m256& paired_ar,
+inline __m256 GruInput32ToFloat(const __m256& paired_ar,
                                  const __m256& third_ar,
                                  const float* pair_weights,
                                  const float* third_weights,

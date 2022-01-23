@@ -25,6 +25,9 @@
 namespace csrblocksparse {
 namespace detail {
 
+static const int32_t kint32min = static_cast<int32_t>(~0x7FFFFFFF);
+static const int32_t kint32max = static_cast<int32_t>(0x7FFFFFFF);
+
 #if defined __AVX2__
 // In-line function computes and returns the result of one row (of blocks) as
 // 4x int32_t. |weights_ptr| is a non-const reference so it can easily be
