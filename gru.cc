@@ -2,15 +2,8 @@
 Test a simple GRU
 */
 
-#include <algorithm>
-#include <atomic>
-#include <cstddef>
-#include <functional>
 #include <iostream>
-#include <memory>
 #include <random>
-#include <string>
-#include <tuple>
 #include <vector>
 
 #include "sparse_matmul/sparse_matmul.h"
@@ -20,106 +13,97 @@ using namespace std;
 using mat = csrblocksparse::CsrBlockSparseMatrix<float, float, int16_t>;
 using vec = csrblocksparse::CacheAlignedVector<float>;
 using masked_mat = csrblocksparse::MaskedSparseMatrix<float>;
-std::bernoulli_distribution distribution(0.05);
-std::default_random_engine generator;
 
 mat create_mat(int h, int w) {
   auto m = masked_mat(w, h, 0.95, 4, 4, 0.0, true);
-  auto a =mat(m);
-  return a ;
+  auto a = mat(m);
+  return a;
 }
 
 struct GRU {
   int input_dim;
   int hidden_dim;
+  mat m1, m2, m3;
   vec b1, b2, b3;
-  mat m11, m12, m21, m22, m31, m32;
-  vec o11, o12, o21, o22, o31, o32, o1, o2, o3;
-  vec hr;
+  vec o1, o2, o3, lo;
+  vec t;
+  vec lb;
+  mat lw;
+  std::vector<vec> embed;
 
   GRU(int input_dim, int hidden_dim)
-      : input_dim(input_dim), hidden_dim(hidden_dim) {
-    b1 = vec(hidden_dim);
-    b1.FillRandom();
-    b2 = vec(hidden_dim);
-    b2.FillRandom();
-    b3 = vec(hidden_dim);
-    b3.FillRandom();
-    o11 = vec(hidden_dim);
-    o11.FillZero();
-    o12 = vec(hidden_dim);
-    o12.FillZero();
-    o21 = vec(hidden_dim);
-    o21.FillZero();
-    o22 = vec(hidden_dim);
-    o22.FillZero();
-    o31 = vec(hidden_dim);
-    o31.FillZero();
-    o32 = vec(hidden_dim);
-    o32.FillZero();
-
-    o1 = vec(hidden_dim);
-    o1.FillZero();
-    o2 = vec(hidden_dim);
-    o2.FillZero();
-    o3 = vec(hidden_dim);
-    o3.FillZero();
-    hr = vec(hidden_dim);
-
-    m11 = create_mat(input_dim, hidden_dim);
-    m12 = create_mat(hidden_dim, hidden_dim);
-
-    m21 = create_mat(input_dim, hidden_dim);
-    m22 = create_mat(hidden_dim, hidden_dim);
-
-    m31 = create_mat(input_dim, hidden_dim);
-    m32 = create_mat(hidden_dim, hidden_dim);
+      : input_dim(input_dim),
+        hidden_dim(hidden_dim),
+        b1(hidden_dim),
+        b2(hidden_dim),
+        b3(hidden_dim),
+        o1(hidden_dim),
+        o2(hidden_dim),
+        o3(hidden_dim),
+        lo(256),
+        t(hidden_dim + input_dim),
+        lb(256) {
+    m1 = create_mat(input_dim + hidden_dim, hidden_dim);
+    m2 = create_mat(input_dim + hidden_dim, hidden_dim);
+    m3 = create_mat(input_dim + hidden_dim, hidden_dim);
+    lw = create_mat(hidden_dim, 256);
+    embed = std::vector<vec>();
+    for (int i = 0; i < 256; i++) {
+      embed.emplace_back(512);
+      embed[i].FillRandom();
+    }
   }
 
-  void forward(vec& h, vec x) {
-    m11.SpMM_bias(x, b1, &o11, false);
-    m12.SpMM_bias(h, b1, &o12, false);
-    csrblocksparse::detail::SumVectors(0, hidden_dim, o11.data(), o12.data(),
-                                       o1.data());
-    m21.SpMM_bias(x, b2, &o21, false);
-    m22.SpMM_bias(h, b2, &o22, false);
-    csrblocksparse::detail::SumVectors(0, hidden_dim, o21.data(), o22.data(),
-                                       o2.data());
+  void load_weights(std::vector<float> m1, std::vector<int> mask_m1,
+                    std::vector<int> b1, std::vector<float> m2,
+                    std::vector<int> mask_m2, std::vector<int> b2,
+                    std::vector<float> m3, std::vector<int> mask_m3,
+                    std::vector<int> b3) {}
 
-    o1.Sigmoid();
-    o2.Sigmoid();
+  void forward(vec& h, std::vector<vec>& xs) {
+    std::default_random_engine generator;
+    std::uniform_real_distribution<float> distribution(0.0, 1.0);
+    int value = 127;
+    std::vector<int> signal(xs.size());
+    std::cout << xs.size() << std::endl;
+    for (int index = 0; index < xs.size(); index++) {
+      for (int i = 0; i < input_dim; i++) t[i] = xs[index][i] + embed[value][i];
+      for (int i = 0; i < hidden_dim; i++) t[input_dim + i] = h[i];
+      m1.SpMM_bias(t, b1, &o1, false);
+      m2.SpMM_bias(t, b2, &o2, false);
+      o1.Sigmoid();
+      o2.Sigmoid();
 
-    for (int i = 0; i < hidden_dim; i++) {
-      hr[i] = h[i] * o2[i];
-    }
+      for (int i = 0; i < hidden_dim; i++) {
+        t[input_dim + i] = h[i] * o2[i];
+      }
 
-    m31.SpMM_bias(x, b3, &o31, false);
-    m32.SpMM_bias(hr, b3, &o32, false);
-    csrblocksparse::detail::SumVectors(0, hidden_dim, o31.data(), o32.data(),
-                                       o3.data());
-    o3.Tanh();
-    for (int i = 0; i < hidden_dim; i++) {
-      h[i] = (1. - o1[i]) * h[i] + o1[i] * o3[i];
+      m3.SpMM_bias(t, b3, &o3, false);
+      o3.Tanh();
+      for (int i = 0; i < hidden_dim; i++) {
+        h[i] = (1. - o1[i]) * h[i] + o1[i] * o3[i];
+      }
+      lw.SpMM_bias(h, lb, &lo, false);
+      value = lo.Sample();
     }
   }
 };
 
 int main() {
   GRU rnn(512, 1024);
-  cout <<  rnn.m11.block_height() << endl;
-  cout <<  rnn.m11.block_width() << endl;
   vec h(1024);
   h.FillRandom();
-  vec x(512);
-  x.FillRandom();
-  auto start = std::chrono::high_resolution_clock::now();
+  std::vector<vec> xs;
   for (int i = 0; i < 16000; i++) {
-    rnn.forward(h, x); 
+    xs.emplace_back(512);
+    xs[i].FillRandom();
   }
+
+  auto start = std::chrono::high_resolution_clock::now();
+  rnn.forward(h, xs);
   auto stop = std::chrono::high_resolution_clock::now();
-  // h.Print();
   auto duration =
       std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-  cout << duration.count() / 1e6 << endl;
+  std::cout << duration.count() / 1e6 << endl;
   return 0;
 }
