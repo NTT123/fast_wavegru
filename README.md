@@ -6,4 +6,5 @@ Run with bazelist:
 
 
 A simple test:
+
     $ bazelisk run m1  -c opt --copt=-march=native
