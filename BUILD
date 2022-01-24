@@ -17,63 +17,28 @@ licenses(["notice"])
 
 exports_files(
     srcs = [
-        "gru.h",
+        "wavegru_mod.cc",
     ],
 )
 
 pybind_extension(
-    name = "wavernn_mod",  # This name is not actually created!
-    srcs = ["wavernn_mod.cc"],
-    deps = [
-        ":gru"
-    ],
-)
-
-py_library(
-    name = "wavernn_mod",
-    data = [":wavernn_mod.so"],
-)
-
-py_binary(
-    name = "speak",
-    srcs = ["speak.py"],
-    deps = [
-        ":wavernn_mod"
-    ],
-)
-
-
-cc_library(
-    name = "gru",
-    srcs = [
-        "gru.h",
-    ],
+    name = "wavegru_mod",  # This name is not actually created!
+    srcs = ["wavegru_mod.cc"],
     deps = [
         "//sparse_matmul",
     ],
 )
 
-
-
-
-pybind_extension(
-    name = "m1_mod",  # This name is not actually created!
-    srcs = ["m1_mod.cc"],
-    deps = [
-        "//sparse_matmul"
-    ],
-)
-
 py_library(
-    name = "m1_mod",
-    data = [":m1_mod.so"],
+    name = "wavegru_mod",
+    data = [":wavegru_mod.so"],
 )
 
 py_binary(
-    name = "m1",
-    srcs = ["m1.py"],
+    name = "wavegru",
+    srcs = ["wavegru.py"],
     deps = [
-        ":m1_mod"
+        ":wavegru_mod"
     ],
 )
 

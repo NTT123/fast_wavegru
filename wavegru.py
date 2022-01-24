@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 from scipy.special import expit
-from wavernn_mod import WaveRNN
+from wavegru_mod import WaveGRU
 
 np.random.seed(42)
 
@@ -44,7 +44,7 @@ def mygru(fts, embed, m1, b1, m2, b2, m3, b3, o1, o1b, o2, o2b):
     return out
 
 
-net = WaveRNN(512, 512)
+net = WaveGRU(512, 512)
 
 x = np.linspace(0, 1, 10)
 embed = np.random.randn(256, 512).astype(np.float32)
