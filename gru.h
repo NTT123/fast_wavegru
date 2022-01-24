@@ -82,7 +82,7 @@ struct GRU {
       for (int i = 0; i < hidden_dim; i++) {
         h[i] = (1. - z[i]) * h[i] + z[i] * hh[i];
       }
-      o1.SpMM_bias(h, o1b, &fco1, false);
+      o1.SpMM_bias(h, o1b, &fco1, true);
       o2.SpMM_bias(fco1, o2b, &fco2, false);
       value = fco2.Sample(temperature);
       signal[index] = value;

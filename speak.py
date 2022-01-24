@@ -36,6 +36,7 @@ def mygru(fts, embed, m1, b1, m2, b2, m3, b3, o1, o1b, o2, o2b):
         h = (1.0 - z) * h + z * hh
 
         fco1 = np.matmul(o1, h) + o1b
+        fco1 = np.maximum(fco1, 0)
         fco2 = np.matmul(o2, fco1) + o2b
         value = np.argmax(fco2)
         out.append(value)
