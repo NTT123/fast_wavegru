@@ -17,33 +17,36 @@ licenses(["notice"])
 
 exports_files(
     srcs = [
-        "gru.cc",
+        "gru.h",
     ],
 )
 
 pybind_extension(
-    name = "my_pb_mod",  # This name is not actually created!
-    srcs = ["my_pb_mod.cc"],
+    name = "wavernn_mod",  # This name is not actually created!
+    srcs = ["wavernn_mod.cc"],
+    deps = [
+        ":gru"
+    ],
 )
 
 py_library(
-    name = "my_pb_mod",
-    data = [":my_pb_mod.so"],
+    name = "wavernn_mod",
+    data = [":wavernn_mod.so"],
 )
 
 py_binary(
-    name = "example",
-    srcs = ["example.py"],
+    name = "speak",
+    srcs = ["speak.py"],
     deps = [
-        ":my_pb_mod"
+        ":wavernn_mod"
     ],
 )
 
 
-cc_binary(
+cc_library(
     name = "gru",
     srcs = [
-        "gru.cc",
+        "gru.h",
     ],
     deps = [
         "//sparse_matmul",
