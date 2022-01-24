@@ -32,11 +32,10 @@ struct WaveRNN {
     auto w_ptr = static_cast<float*>(w.request().ptr);
     auto mask_ptr = static_cast<int*>(mask.request().ptr);
     auto rb = b.unchecked<1>();
-    // load bias
-    for (int i = 0; i < rb.shape(0); i++) bias[i] = rb(i);
+    // load bias, scale by 1/4
+    for (int i = 0; i < rb.shape(0); i++) bias[i] = rb(i) / 4;
     // load weights
     masked_mat mm(w.shape(0), w.shape(1), mask_ptr, w_ptr);
-    std::string buffer;
     mat mmm(mm);
     return mmm;
   }
@@ -47,20 +46,20 @@ struct WaveRNN {
                     indarray o1_mask, fndarray o1b, fndarray o2,
                     indarray o2_mask, fndarray o2b) {
     gru.m1 = load_linear(gru.b1, m1, m1_mask, b1);
-    gru.m2 = load_linear(gru.b2, m1, m1_mask, b2);
-    gru.m3 = load_linear(gru.b3, m1, m1_mask, b3);
+    gru.m2 = load_linear(gru.b2, m2, m2_mask, b2);
+    gru.m3 = load_linear(gru.b3, m3, m3_mask, b3);
     gru.o1 = load_linear(gru.o1b, o1, o1_mask, o1b);
     gru.o2 = load_linear(gru.o2b, o2, o2_mask, o2b);
   }
 
-  std::vector<int> inference(fndarray ft) {
+  std::vector<int> inference(fndarray ft, float temperature) {
     auto rft = ft.unchecked<2>();
     std::vector<vec> xs;
     for (int i = 0; i < rft.shape(0); i++) {
       xs.emplace_back(input_dim);
       for (int j = 0; j < input_dim; j++) xs[i][j] = rft(i, j);
     }
-    auto signal = gru.forward(xs);
+    auto signal = gru.forward(xs, temperature);
     return signal;
   }
 };

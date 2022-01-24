@@ -53,3 +53,27 @@ cc_library(
     ],
 )
 
+
+
+
+pybind_extension(
+    name = "m1_mod",  # This name is not actually created!
+    srcs = ["m1_mod.cc"],
+    deps = [
+        "//sparse_matmul"
+    ],
+)
+
+py_library(
+    name = "m1_mod",
+    data = [":m1_mod.so"],
+)
+
+py_binary(
+    name = "m1",
+    srcs = ["m1.py"],
+    deps = [
+        ":m1_mod"
+    ],
+)
+

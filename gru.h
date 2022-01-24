@@ -61,9 +61,7 @@ struct GRU {
     }
   }
 
-  std::vector<int> forward(std::vector<vec>& xs) {
-    std::default_random_engine generator;
-    std::uniform_real_distribution<float> distribution(0.0, 1.0);
+  std::vector<int> forward(std::vector<vec>& xs, float temperature) {
     int value = 127;
     std::vector<int> signal(xs.size());
     h.FillZero();
@@ -86,25 +84,9 @@ struct GRU {
       }
       o1.SpMM_bias(h, o1b, &fco1, false);
       o2.SpMM_bias(fco1, o2b, &fco2, false);
-      value = fco2.Sample();
+      value = fco2.Sample(temperature);
       signal[index] = value;
     }
     return signal;
   }
 };
-
-// int main() {
-//   GRU rnn(512, 512);
-//   std::vector<vec> xs;
-//   for (int i = 0; i < 16000; i++) {
-//     xs.emplace_back(512);
-//     xs[i].FillRandom(-0.1, 0.1);
-//   }
-//   auto start = std::chrono::high_resolution_clock::now();
-//   auto signal = rnn.forward(xs);
-//   auto stop = std::chrono::high_resolution_clock::now();
-//   auto duration =
-//       std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-//   std::cout << duration.count() / 1e6 << endl;
-//   return 0;
-// }
