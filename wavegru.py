@@ -1,93 +1,59 @@
-import sys
+import pickle
 import time
+from argparse import ArgumentParser
+from pathlib import Path
 
+import librosa
 import numpy as np
-from scipy.special import expit
+from scipy.io import wavfile
 from wavegru_mod import WaveGRU
 
-np.random.seed(42)
+parser = ArgumentParser()
+parser.add_argument("--weight", type=Path, help="Path to weight file", required=True)
+parser.add_argument("--mel", type=Path, help="Path to mel file", required=True)
+parser.add_argument(
+    "--output", type=Path, help="Path to output wav file", required=True
+)
+args = parser.parse_args()
 
-print("python is", sys.version_info)
+with open(args.weight, "rb") as f:
+    data = pickle.load(f)
 
-
-def sigmoid(x):
-    return expit(x)
-
-
-def mygru(fts, embed, m1, b1, m2, b2, m3, b3, o1, o1b, o2, o2b):
-    value = 127
-    h = np.zeros((512,))
-    out = []
-    for i in range(fts.shape[0]):
-        # embed
-        ft = fts[i]
-        e = embed[value]
-        x = e + ft
-
-        # gru
-        t = np.concatenate((x, h), axis=0)
-        z = np.matmul(m1, t) + b1
-        r = np.matmul(m2, t) + b2
-        z = sigmoid(z)
-        r = sigmoid(r)
-        t = np.concatenate((x, r * h), axis=0)
-        hh = np.matmul(m3, t) + b3
-        hh = np.tanh(hh)
-        h = (1.0 - z) * h + z * hh
-
-        fco1 = np.matmul(o1, h) + o1b
-        fco1 = np.maximum(fco1, 0)
-        fco2 = np.matmul(o2, fco1) + o2b
-        value = np.argmax(fco2)
-        out.append(value)
-
-    return out
+embed = data["embed_weight"]
 
 
-net = WaveGRU(512, 512)
-
-x = np.linspace(0, 1, 10)
-embed = np.random.randn(256, 512).astype(np.float32)
+embed_dim = embed.shape[1]
+rnn_dim = data["gru_xh_h_bias"].shape[0]
+input_dim = data["gru_xh_zr_weight"].shape[1] - rnn_dim
+net = WaveGRU(input_dim, embed_dim, rnn_dim)
 net.load_embed(embed)
+dim = embed_dim + input_dim + rnn_dim
+z, r = np.split(data["gru_xh_zr_weight"].T, 2, axis=0)
+h = data["gru_xh_h_weight"].T
+z = np.ascontiguousarray(z)
+r = np.ascontiguousarray(r)
+h = np.ascontiguousarray(h)
 
-m1 = np.random.randn(512, 1024).astype(np.float32)
-m2 = np.random.randn(512, 1024).astype(np.float32)
-m3 = np.random.randn(512, 1024).astype(np.float32)
-b1 = np.random.randn(512).astype(np.float32)
-b2 = np.random.randn(512).astype(np.float32)
-b3 = np.random.randn(512).astype(np.float32)
+b1, b2 = np.split(data["gru_xh_zr_bias"], 2)
+b3 = data["gru_xh_h_bias"]
+m1, m2, m3 = z, r, h
 
-mask1 = np.random.randint(0, 100, (512 // 4, 1024 // 4)) >= 90
-mask1 = np.tile(mask1[:, None, :, None], (1, 4, 1, 4)).reshape((512, 1024))
-mask1 = np.ascontiguousarray(mask1)
-m1 = m1 * mask1
+mask_z, mask_r = np.split(data["gru_xh_zr_mask"].T, 2, axis=0)
+mask_h = data["gru_xh_h_mask"].T
+mask_z = np.ascontiguousarray(mask_z)
+mask_r = np.ascontiguousarray(mask_r)
+mask_h = np.ascontiguousarray(mask_h)
 
-mask2 = np.random.randint(0, 100, (512 // 4, 1024 // 4)) >= 90
-mask2 = np.tile(mask2[:, None, :, None], (1, 4, 1, 4)).reshape((512, 1024))
-mask2 = np.ascontiguousarray(mask2)
-m2 = m2 * mask2
+mask1, mask2, mask3 = mask_z, mask_r, mask_h
 
-mask3 = np.random.randint(0, 100, (512 // 4, 1024 // 4)) >= 90
-mask3 = np.tile(mask3[:, None, :, None], (1, 4, 1, 4)).reshape((512, 1024))
-mask3 = np.ascontiguousarray(mask3)
-m3 = m3 * mask3
+o1 = np.ascontiguousarray(data["o1_weight"].T)
+masko1 = np.ascontiguousarray(data["o1_mask"].T)
+o1b = data["o1_bias"]
 
+o2 = np.ascontiguousarray(data["o2_weight"].T)
+masko2 = np.ascontiguousarray(data["o2_mask"].T)
+o2b = data["o2_bias"]
 
-o1 = np.random.randn(512, 512).astype(np.float32)
-masko1 = np.random.randint(0, 100, (512 // 4, 512 // 4)) >= 90
-masko1 = np.tile(masko1[:, None, :, None], (1, 4, 1, 4)).reshape((512, 512))
-masko1 = np.ascontiguousarray(masko1)
-o1 = o1 * masko1
-
-o1b = np.random.randn(512).astype(np.float32)
-
-o2 = np.random.randn(256, 512).astype(np.float32)
-masko2 = np.random.randint(0, 100, (256 // 4, 512 // 4)) >= 90
-masko2 = np.tile(masko2[:, None, :, None], (1, 4, 1, 4)).reshape((256, 512))
-masko2 = np.ascontiguousarray(masko2)
-o2 = o2 * masko2
-
-o2b = np.random.randn(256).astype(np.float32)
 
 net.load_weights(
     m1,
@@ -108,31 +74,22 @@ net.load_weights(
 )
 
 
-ft = np.random.randn(100, 512).astype(np.float32)
-
-kk = mygru(
-    ft,
-    embed,
-    m1,
-    b1,
-    m2,
-    b2,
-    m3,
-    b3,
-    o1,
-    o1b,
-    o2,
-    o2b,
-)
-print(kk)
-
-
-signal = net.inference(ft, 1e-5)
-print(signal)
-
-
-ft = np.random.randn(16_000, 512).astype(np.float32)
+ft = np.load(args.mel)
+if len(ft.shape) == 3:
+    ft = ft[0]
 start = time.perf_counter()
 signal = net.inference(ft, 1.0)
 end = time.perf_counter()
-print(end - start)
+print("Duration:", end - start)
+
+signal = np.array(signal)
+wav = librosa.mu_expand(signal - 127, mu=255)
+wav = librosa.effects.deemphasis(wav, coef=0.86)
+wav = wav * 2.0
+wav = wav / max(1.0, np.max(np.abs(wav)))
+wav = wav * 2 ** 15
+wav = np.clip(wav, a_min=-(2 ** 15), a_max=(2 ** 15) - 1)
+wav = wav.astype(np.int16)
+
+wavfile.write(str(args.output), 24_000, wav)
+print(f"Saved output to '{args.output}'")
