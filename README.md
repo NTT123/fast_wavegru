@@ -1,15 +1,15 @@
-# Introduction
+## Introduction
 
-We use deepmind [sparse matmul library](https://github.com/google/lyra/tree/main/sparse_matmul) to speed-up WaveGRU inference.
+We use DeepMind's [sparse matmul library](https://github.com/google/lyra/tree/main/sparse_matmul) to speed-up WaveGRU inference.
 
 
-# Build
+## Build
     $ go get github.com/bazelbuild/bazelisk
     $ sudo apt-get install libsndfile1 -y
     $ pip install librosa
     $ bazelisk build wavegru -c opt --copt=-march=native
 
 
-# Run
+## Run
 
     $ ./bazel-bin/wavegru --weight ./weight.pickle --mel ./ft.npy --output audio.wav

@@ -53,11 +53,11 @@ struct WaveGRU {
         z(hidden_dim),
         r(hidden_dim),
         hh(hidden_dim),
-        fco1(512),
+        fco1(hidden_dim),
         fco2(256),
         t(hidden_dim + input_dim + embed_dim),
         h(hidden_dim),
-        o1b(512),
+        o1b(hidden_dim),
         o2b(256) {
     m1 = create_mat(input_dim + hidden_dim + embed_dim, hidden_dim);
     m2 = create_mat(input_dim + hidden_dim + embed_dim, hidden_dim);
